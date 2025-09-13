@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Weather App</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(120deg,#67b26f,#4ca2cd); color:#fff; min-height:100vh; display:flex; align-items:center; justify-content:center; margin:0;}
+    .app { background: rgba(0,0,0,0.28); padding:24px; border-radius:12px; width:320px; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.2);}
+    input { width:calc(100% - 22px); padding:8px 10px; border-radius:8px; border:none; margin-bottom:10px; }
+    button { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; background:#ffb74d; color:#333; font-weight:bold;}
+    .card { margin-top:14px; background: rgba(255,255,255,0.06); padding:12px; border-radius:8px; min-height:80px; }
+    .muted { color: #e6f7ff; opacity:0.9; font-size:0.9rem; }
+    .loader { margin-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h2>🌤 Weather Checker</h2>
+    <input id="city" placeholder="Enter city (e.g. Delhi)" />
+    <div style="display:flex; gap:8px; justify-content:center;">
+      <button id="btnGet">Get Weather</button>
+      <button id="useLocation">Use My Location</button>
+    </div>
+
+    <div id="result" class="card">Enter a city and press Get Weather.</div>
+    <div id="debug" class="muted" style="margin-top:8px;font-size:12px;"></div>
+  </div>
+
+  <script>
+    const apiKey = "8f824313c8cda612615c0c0e7a0aa455"; // <-- REPLACE this
+
+    const cityInput = document.getElementById('city');
+    const btnGet = document.getElementById('btnGet');
+    const result = document.getElementById('result');
+    const debug = document.getElementById('debug');
+    const useLocationBtn = document.getElementById('useLocation');
+
+    async function fetchWeatherByCity(city) {
+      if (!city) { result.innerHTML = '<p>Type a city name.</p>'; return; }
+      result.innerHTML = '<p class="loader">Loading…</p>';
+      debug.textContent = '';
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (res.status === 200) renderWeather(data);
+        else if (data && data.message) result.innerHTML = `<p>❌ ${data.message}</p>`;
+        else result.innerHTML = `<p>❌ Error: ${res.status}</p>`;
+      } catch (err) {
+        result.innerHTML = `<p>Network error. Check your connection.</p>`;
+        debug.textContent = err;
+      }
+    }
+
+    async function fetchWeatherByCoords(lat, lon) {
+      result.innerHTML = '<p class="loader">Loading…</p>';
+      debug.textContent = '';
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (res.status === 200) renderWeather(data);
+        else result.innerHTML = `<p>❌ ${data.message || 'Error'}</p>`;
+      } catch (err) {
+        result.innerHTML = `<p>Network error.</p>`;
+        debug.textContent = err;
+      }
+    }
+
+    function renderWeather(d) {
+      const iconUrl = `https://openweathermap.org/img/wn/${d.weather[0].icon}@2x.png`;
+      result.innerHTML = `
+        <h3>${d.name}, ${d.sys.country}</h3>
+        <img src="${iconUrl}" alt="${d.weather[0].description}" style="width:80px;height:80px;">
+        <p style="font-size:20px;margin:6px 0;"><strong>${Math.round(d.main.temp)}°C</strong></p>
+        <p class="muted">${d.weather[0].description}</p>
+        <p class="muted">Humidity: ${d.main.humidity}% • Wind: ${d.wind.speed} m/s</p>
+      `;
+      debug.textContent = `Fetched at ${new Date().toLocaleString()}`;
+    }
+
+    // Events
+    btnGet.addEventListener('click', () => fetchWeatherByCity(cityInput.value.trim()));
+    cityInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') fetchWeatherByCity(cityInput.value.trim()); });
+
+    useLocationBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) { result.innerHTML = '<p>Geolocation not supported.</p>'; return; }
+      result.innerHTML = '<p class="loader">Getting location…</p>';
+      navigator.geolocation.getCurrentPosition(
+        pos => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+        err => result.innerHTML = `<p>Permission denied or unavailable.</p>`
+      );
+    });
+  </script>
+</body>
+</html>
